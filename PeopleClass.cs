@@ -19,6 +19,7 @@ class PeopleClass
         // Exibir os resultados
         foreach (var pessoa in nomes)
         {
+
             Console.WriteLine(pessoa.Name + "-" + pessoa.DateBirth.ToString("dd/MM/yyyy"));
         }
     }
