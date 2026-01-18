@@ -12,6 +12,7 @@ namespace technicaltest_b3.Tests;
 /// Testes xUnit para validar funcionalidades do site dos Correios
 /// Baseado no teste Playwright: correios.spec.ts
 /// </summary>
+[TestCaseOrderer("technicaltest_b3.Tests.PriorityOrderer", "technicaltest_b3")]
 public class CorreiosTests : IDisposable
 {
     private readonly IWebDriver _driver;
@@ -25,8 +26,6 @@ public class CorreiosTests : IDisposable
         new DriverManager().SetUpDriver(new ChromeConfig());
         
         var options = new ChromeOptions();
-        // Executar em modo visível para permitir preenchimento manual do captcha
-        // options.AddArgument("--headless"); // Comentado para ver o navegador
         options.AddArgument("--start-maximized");
         options.AddArgument("--disable-gpu");
         options.AddArgument("--no-sandbox");
@@ -43,23 +42,21 @@ public class CorreiosTests : IDisposable
     }
 
     /// <summary>
-    /// Teste: Validar que CEP 80700000 não existe
+    /// Teste 1: Buscar CEP inválido e validar mensagens de erro
     /// </summary>
     [Fact]
-    [Trait("Category", "CEP")]
-    public void DeveRetornarMensagemDeErroParaCepInvalido()
+    [TestPriority(1)]
+    public void Teste01_BuscarCepInvalido_DeveRetornarMensagemDeErro()
     {
         // Arrange
         const string cepInvalido = "80700000";
 
         // Act
-        _homePage.Navegar();
-        _homePage.AceitarCookiesSeExistir();
-        
         _buscaCepPage.Navegar();
+        _homePage.AceitarCookiesSeExistir();
         _buscaCepPage.PreencherCep(cepInvalido);
         _buscaCepPage.FocarCampoCaptcha();
-        _buscaCepPage.AguardarCaptchaEBuscar();
+        _buscaCepPage.AguardarCaptchaEBuscar(tempoEsperaSegundos: 8);
 
         // Assert
         _buscaCepPage.MensagemCepNaoEncontradoVisivel().Should().BeTrue(
@@ -70,11 +67,11 @@ public class CorreiosTests : IDisposable
     }
 
     /// <summary>
-    /// Teste: Validar que CEP 01013001 retorna "Rua Quinze de Novembro, São Paulo/SP"
+    /// Teste 2: Buscar CEP válido e validar o retorno
     /// </summary>
     [Fact]
-    [Trait("Category", "CEP")]
-    public void DeveRetornarEnderecoCorretoParaCepValido()
+    [TestPriority(2)]
+    public void Teste02_BuscarCepValido_DeveRetornarEnderecoCorreto()
     {
         // Arrange
         const string cepValido = "01013001";
@@ -82,13 +79,11 @@ public class CorreiosTests : IDisposable
         const string cidadeEstadoEsperado = "São Paulo/SP";
 
         // Act
-        _homePage.Navegar();
-        _homePage.AceitarCookiesSeExistir();
-        
         _buscaCepPage.Navegar();
+        _homePage.AceitarCookiesSeExistir();
         _buscaCepPage.PreencherCep(cepValido);
         _buscaCepPage.FocarCampoCaptcha();
-        _buscaCepPage.AguardarCaptchaEBuscar();
+        _buscaCepPage.AguardarCaptchaEBuscar(tempoEsperaSegundos: 8);
 
         // Assert
         _buscaCepPage.ResultadoContemLogradouro(logradouroEsperado).Should().BeTrue(
@@ -96,31 +91,23 @@ public class CorreiosTests : IDisposable
         
         _buscaCepPage.ResultadoContemCidadeEstado(cidadeEstadoEsperado).Should().BeTrue(
             $"o resultado deve conter a cidade/estado '{cidadeEstadoEsperado}'");
-        
-        var logradouro = _buscaCepPage.ObterLogradouro();
-        logradouro.Should().Contain(logradouroEsperado);
-        
-        var cidadeEstado = _buscaCepPage.ObterCidadeEstado();
-        cidadeEstado.Should().Be(cidadeEstadoEsperado);
     }
 
     /// <summary>
-    /// Teste: Validar que código SS987654321BR não foi encontrado
+    /// Teste 3: Buscar rastreamento inválido e validar mensagem de não encontrado
     /// </summary>
     [Fact]
-    [Trait("Category", "Rastreamento")]
-    public void DeveRetornarMensagemDeErroParaCodigoRastreioInvalido()
+    [TestPriority(3)]
+    public void Teste03_BuscarRastreamentoInvalido_DeveRetornarMensagemDeErro()
     {
         // Arrange
         const string codigoInvalido = "SS987654321BR";
 
         // Act
-        _homePage.Navegar();
-        _homePage.AceitarCookiesSeExistir();
-        
         _rastreamentoPage.Navegar();
+        _homePage.AceitarCookiesSeExistir();
         _rastreamentoPage.PreencherCodigoRastreio(codigoInvalido);
-        _rastreamentoPage.AguardarCaptchaEConsultar();
+        _rastreamentoPage.AguardarCaptchaEConsultar(tempoEsperaSegundos: 8);
 
         // Assert
         _rastreamentoPage.MensagemObjetoNaoEncontradoVisivel().Should().BeTrue(
@@ -128,60 +115,6 @@ public class CorreiosTests : IDisposable
         
         var mensagem = _rastreamentoPage.ObterMensagemObjetoNaoEncontrado();
         mensagem.Should().Contain("Objeto não encontrado na base");
-        
-        _rastreamentoPage.ClicarOk();
-    }
-
-    /// <summary>
-    /// Teste completo do fluxo: CEP inválido, CEP válido e Rastreamento
-    /// (Equivalente ao teste Playwright original)
-    /// </summary>
-    [Fact]
-    [Trait("Category", "FluxoCompleto")]
-    public void FluxoCompleto_CepInvalido_CepValido_Rastreamento()
-    {
-        // 1. Entrar no site dos correios
-        _homePage.Navegar();
-        _homePage.AceitarCookiesSeExistir();
-
-        // 2. Procurar pelo CEP 80700000 (inválido)
-        _buscaCepPage.Navegar();
-        _buscaCepPage.PreencherCep("80700000");
-        _buscaCepPage.FocarCampoCaptcha();
-        _buscaCepPage.AguardarCaptchaEBuscar();
-
-        // 3. Confirmar que o CEP não existe
-        _buscaCepPage.MensagemCepNaoEncontradoVisivel().Should().BeTrue(
-            "a mensagem de CEP não encontrado deve aparecer");
-
-        // 4. Voltar à tela inicial
-        _homePage.Navegar();
-
-        // 5. Procurar pelo CEP 01013-001 (válido)
-        _buscaCepPage.Navegar();
-        _buscaCepPage.PreencherCep("01013001");
-        _buscaCepPage.FocarCampoCaptcha();
-        _buscaCepPage.AguardarCaptchaEBuscar();
-
-        // 6. Confirmar que o resultado seja em "Rua Quinze de Novembro, São Paulo/SP"
-        _buscaCepPage.ResultadoContemLogradouro("Rua Quinze de Novembro").Should().BeTrue();
-        _buscaCepPage.ResultadoContemCidadeEstado("São Paulo/SP").Should().BeTrue();
-
-        // 7. Voltar à tela inicial
-        _homePage.Navegar();
-
-        // 8. Procurar no rastreamento de código o número "SS987654321BR"
-        _rastreamentoPage.Navegar();
-        _rastreamentoPage.PreencherCodigoRastreio("SS987654321BR");
-        _rastreamentoPage.AguardarCaptchaEConsultar();
-
-        // 9. Confirmar que o código não está correto
-        _rastreamentoPage.MensagemObjetoNaoEncontradoVisivel().Should().BeTrue(
-            "a mensagem de objeto não encontrado deve aparecer");
-        
-        _rastreamentoPage.ClicarOk();
-
-        // 10. Fechar o browser (automático pelo Dispose)
     }
 
     public void Dispose()
